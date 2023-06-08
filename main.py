@@ -94,7 +94,7 @@ class SeqDataset(Dataset):
     def close(self):
         self.fasta.close()
 
-if torch.cuda.is_available():
+if not torch.cuda.is_available():
     device = torch.device('cuda')
     print('\nCUDA device: GPU\n')
 else:
@@ -166,7 +166,7 @@ last_epoch = 0
 
 if input_params.model_weight:
 
-    if torch.cuda.is_available():
+    if not torch.cuda.is_available():
         #load on gpu
         model.load_state_dict(torch.load(input_params.model_weight))
         if input_params.optimizer_weight:
@@ -177,7 +177,7 @@ if input_params.model_weight:
         if input_params.optimizer_weight:
             optimizer.load_state_dict(torch.load(input_params.optimizer_weight, map_location=torch.device('cpu')))
 
-    last_epoch = int(input_params.model_weight.split('_')[-3]) #infer previous epoch from input_params.model_weight
+    #last_epoch = int(input_params.model_weight.split('_')[-3]) #infer previous epoch from input_params.model_weight
 
 predictions_dir = os.path.join(input_params.output_dir, 'predictions') #dir to save predictions
 weights_dir = os.path.join(input_params.output_dir, 'weights') #dir to save model weights at save_at epochs

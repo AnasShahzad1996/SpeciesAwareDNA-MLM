@@ -93,7 +93,7 @@ def model_eval(model, optimizer, dataloader, device, get_embeddings = False, sil
             masked_sequence = masked_sequence.to(device)
             targets_masked = targets_masked.to(device)
             targets = targets.to(device)
-            species_label = species_label.long().to(device)
+            species_label = torch.tensor(species_label).long().to(device)
             
             logits, embeddings = model(masked_sequence, species_label)
 
