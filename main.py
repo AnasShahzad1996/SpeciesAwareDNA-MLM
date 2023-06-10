@@ -94,7 +94,7 @@ class SeqDataset(Dataset):
     def close(self):
         self.fasta.close()
 
-if not torch.cuda.is_available():
+if torch.cuda.is_available():
     device = torch.device('cuda')
     print('\nCUDA device: GPU\n')
 else:
@@ -166,7 +166,7 @@ last_epoch = 0
 
 if input_params.model_weight:
 
-    if not torch.cuda.is_available():
+    if torch.cuda.is_available():
         #load on gpu
         model.load_state_dict(torch.load(input_params.model_weight))
         if input_params.optimizer_weight:
