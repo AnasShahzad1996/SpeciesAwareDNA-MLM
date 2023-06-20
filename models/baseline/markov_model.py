@@ -16,7 +16,7 @@ from Bio import AlignIO
 
 from encoding_utils.sequence_utils import * #seq_to_labels
 
-from typing import List
+import pickle
 
 class KmerCount:
     
@@ -183,50 +183,38 @@ class BiMarkov(Markov):
 
 class MarkovModel():
 
-    # new in order to allow to pass on a kmer dictionary to the constructor
+    # refactored this in comparison to the original code
     def __init__(self,
         kmercount: KmerCount,
         markov_matrix_path: str,
         order: int,
         bidirectional: bool,
-        sequences: List[str]):
+        test_df_path: str):
 
-        self.max_k = kmercount.max_k
-        self.kmer_dict = kmercount.kmer_dict
-        self.kmer_counts_dict = kmercount.kmer_counts_dict
-        self.markov_matrix = np.zeros((self.max_k//2 + 1,len(self.kmer_dict[self.max_k-1]),4))
+        self.test_df_path = test_df_path
+
         self.order = order
         self.bidirectional = bidirectional
         self.markov_matrix = markov_matrix_path
-        self.sequences = sequences
 
         if bidirectional:
-            self.mkv = BiMarkov(kmercount)
-
-    # from original repository
-    # def init_from_file(self, 
-    #     halflife_df_path: str,
-    #     markov_matrix_path: str,
-    #     order: int,
-    #     bidirectional: bool) -> None:
-
-    #     self.halflife_df = pd.read_csv(halflife_df_path)
-    #     if bidirectional:
-    #         self.mkv = BiMarkov.init_from_file(markov_matrix_path)
-    #     else:
-    #         self.mkv = MarkovChain.init_from_file(markov_matrix_path)
-
-    #     self.order = order
+            self.model = BiMarkov(kmercount)
+        else: 
+            self.model = MarkovChain(kmercount)
         
 
     def test(self):
         prbs = []
         complete_string = ""
 
-        # changed from halflife_df to sequence list
-        for row in self.sequences:
-            prbs.append(self.mkv.impute_for_seq(row, order=self.order))
-            complete_string += row
+        # refactored this in comparison to the original code
+        # testing is only done on the test data
+        with open(self.test_df_path, 'rb') as f:
+            test_df = pickle.load(f)
+
+        for _, row in test_df.iterrows():
+            prbs.append(self.model.impute_for_seq(row['3-UTR'], order=self.order))
+            complete_string += row['3-UTR']
 
         prbs = np.concatenate(prbs,axis=0)
         prbs = np.concatenate([prbs,np.zeros((prbs.shape[0],1))],axis=1)
@@ -236,12 +224,11 @@ class MarkovModel():
         targets = torch.tensor(seq_to_labels(complete_string))
 
         # compute cross entropy, it's already as probability so just nll
-        ce = nll_loss(prbs,targets, reduction="none") #cross_entropy(prbs, targets)
+        ce = nll_loss(prbs,targets, reduction="none")
 
-        #print(ce)
-
-        # save
-        torch.save(prbs, "masked_logits.pt") # no logits, so use prbs
+        # save everything needed for plotting
+        # no logits, so use prbs
+        torch.save(prbs, "masked_logits.pt")
         torch.save(torch.argmax(prbs, dim=1), "masked_preds.pt")
         torch.save(prbs, "prbs.pt")
         torch.save(ce,"ce.pt")
