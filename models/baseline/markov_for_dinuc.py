@@ -124,7 +124,7 @@ class MarkovModelNew():
 
     # refactored this in comparison to the original code
     def __init__(self,
-        kmercount: KmerCount,
+        kmercount: KmerCountNew,
         markov_matrix_path: str,
         order: int,
         bidirectional: bool,
