@@ -128,7 +128,8 @@ class MarkovModelNew():
         markov_matrix_path: str,
         order: int,
         bidirectional: bool,
-        test_df_path: str):
+        test_df_path: str,
+        dinuc_dist):
 
         self.test_df_path = test_df_path
 
