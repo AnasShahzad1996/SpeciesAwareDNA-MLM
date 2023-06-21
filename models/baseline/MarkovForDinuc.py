@@ -82,7 +82,7 @@ class MarkovChainNew(Markov):
         mkv.markov_matrix = markov_matrix
         return mkv
     
-    def __init__(self, kmercount):
+    def __init__(self, kmercount, dinucdist):
         self.max_k = kmercount.max_k
         self.kmer_dict = kmercount.kmer_dict
         self.kmer_counts_dict = kmercount.kmer_counts_dict
@@ -137,7 +137,7 @@ class MarkovModelNew():
         self.bidirectional = bidirectional
         self.markov_matrix = markov_matrix_path
 
-        self.model = MarkovChain(kmercount)
+        self.model = MarkovChain(kmercount, dinuc_dist)
         
 
     def test(self):
