@@ -73,7 +73,7 @@ class MarkovNew:
     def impute_for_seq_vec(self, seq_vec, order=None):
         return np.concatenate([self.impute_for_seq(seq, order=order) for seq in seq_vec],axis=0) 
 
-class MarkovChainNew(Markov):
+class MarkovChainNew(MarkovNew):
     
     @classmethod
     def init_from_file(cls, file):
@@ -137,7 +137,7 @@ class MarkovModelNew():
         self.bidirectional = bidirectional
         self.markov_matrix = markov_matrix_path
 
-        self.model = MarkovChain(kmercount, dinuc_dist)
+        self.model = MarkovChainNew(kmercount, dinuc_dist)
         
 
     def test(self):
