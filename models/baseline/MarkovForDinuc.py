@@ -115,7 +115,7 @@ class MarkovChainNew(Markov):
             probs.append(self.markov_matrix[j][state])
             j += 1
         while i < len(seq) - order:
-            state = [self.kmer_dict[order][seq[i:i+order]]]
+            state = [self.kmer_dict[order][seq[i+1:i+order+1]]]
             probs.append(self.markov_matrix[order][state])
             i += 1
         return np.concatenate(probs,axis=0)
