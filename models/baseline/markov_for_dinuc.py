@@ -88,19 +88,6 @@ class MarkovChainNew(MarkovNew):
         self.kmer_counts_dict = kmercount.kmer_counts_dict
         self.markov_matrix = dinucdist
     
-    def compile_from_counts(self):
-        for k in range(1,self.max_k+1):
-            for kmer in self.kmer_dict[k]:
-                state = [self.kmer_dict[k-1][kmer[:k-1]]]
-                next_nt = [self.kmer_dict[1][kmer[k-1]]]
-                counts = self.kmer_counts_dict[k][self.kmer_dict[k][kmer]]
-                self.markov_matrix[k-1, state, next_nt] = counts
-            # normalize rows
-            if k == 1:
-                self.markov_matrix[k-1,:,:] = self.markov_matrix[k-1,:,:]/np.sum(self.markov_matrix[k-1,:,:])
-            else:
-                self.markov_matrix[k-1,:,:] = self.markov_matrix[k-1,:,:]/np.sum(self.markov_matrix[k-1,:,:],axis=1)[:,np.newaxis]
-        
     def impute_for_seq(self, seq, order=None):
         probs = []
         if not order and not order == 0:
