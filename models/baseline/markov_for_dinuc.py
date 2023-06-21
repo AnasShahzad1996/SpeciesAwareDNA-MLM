@@ -86,7 +86,7 @@ class MarkovChainNew(MarkovNew):
         self.max_k = kmercount.max_k
         self.kmer_dict = kmercount.kmer_dict
         self.kmer_counts_dict = kmercount.kmer_counts_dict
-        self.markov_matrix = np.zeros((self.max_k,len(self.kmer_dict[self.max_k-1]),4))
+        self.markov_matrix = dinucdist
     
     def compile_from_counts(self):
         for k in range(1,self.max_k+1):
