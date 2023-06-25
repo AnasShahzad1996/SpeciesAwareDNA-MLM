@@ -1037,6 +1037,14 @@ class MetricsHandler():
             if end<=start:
                 continue
 
+            # adding logic to exclude those sequences
+            alphabet = "ACGTN"
+            whole_seq = self.debug_seq[start:end]
+            real_encode = "".join([alphabet[numeric] for numeric in whole_seq])
+            if whole_seq in optional_config["exclude_random"]:
+                continue
+
+
             found=False
             tries = 0
             max_tries = 5
