@@ -3,3 +3,4 @@ Homo_sapiens_3prime_UTR.fa.fai
 MLM_mammals_species_aware_5000_weights
 Scer_half_life.csv
 **/__pycache__/
+**/*.pt

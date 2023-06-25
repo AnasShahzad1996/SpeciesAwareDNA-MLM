@@ -10,7 +10,6 @@ import torch
 import numpy as np
 import pandas as pd
 
-#import pyreadr
 
 import pickle
 import copy
@@ -18,12 +17,32 @@ import copy
 from sklearn.metrics import accuracy_score, roc_curve, roc_auc_score, precision_recall_curve
 import wandb
 
-from src import utils
-from src.utils.tests import compare_sequences
-from .utils import BaseRange, hot_one, outputs_to_cpu, flatten_list
-from src.datamodules.motifs import sacc_cer_utr3_motif_handler as motifs3p, pombe_utr3_motif_handler as mpombe3p
+from helpers.tests import compare_sequences
+from helpers.utils import BaseRange, hot_one, outputs_to_cpu, flatten_list
+from helpers.motifs import sacc_cer_utr3_motif_handler as motifs3p, pombe_utr3_motif_handler as mpombe3p
+import logging
 
-log = utils.get_logger(__name__)
+def get_logger(name=__name__) -> logging.Logger:
+    """Initializes multi-GPU-friendly python command line logger."""
+
+    logger = logging.getLogger(name)
+
+    # this ensures all logging levels get marked with the rank zero decorator
+    # otherwise logs would get multiplied for each GPU process in multi-GPU setup
+    for level in (
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "exception",
+        "fatal",
+        "critical",
+    ):
+        setattr(logger, level, getattr(logger, level))
+
+    return logger
+
+log = get_logger(__name__)
 
 
 def positional_avg(all_motif_ce, motif_len):
@@ -52,7 +71,7 @@ class MotifMetrics():
         wandb_log = False,
         plots_dir = os.getcwd(),
         #motif_dict = None,
-        motif_dict =  motifs3p.dict, #mpombe3p.dict, # #{"TGTAAATA":1, "TGCAT":2, "ATATTC":3, "TTTTTTA":4}, # exo_motifs
+        motif_dict = {},
         save = True  
         ) -> None:
         
@@ -76,7 +95,8 @@ class MotifMetrics():
         self.masked_preds = self.preds[self.targets!=-100]#.cpu()
         self.masked_motifs = self.motifs[self.targets!=-100]#.cpu()
         self.masked_targets = self.targets[self.targets!=-100]#.cpu()
-        self.ce = cross_entropy(self.masked_logits.cuda(), self.masked_targets.cuda(), reduction = "none").cuda()
+        #self.ce = cross_entropy(self.masked_logits.cuda(), self.masked_targets.cuda(), reduction = "none").cuda()
+        self.ce = cross_entropy(self.masked_logits, self.masked_targets, reduction = "none")
         #self.ce = nll_loss(self.masked_logits.cuda(), self.masked_targets.cuda(), reduction = "none").cuda()
         
         self.residue_pos = self.annotate_residue_positions()
@@ -85,7 +105,7 @@ class MotifMetrics():
             to_save = [outputs_to_cpu(self.outputs), self.masked_motifs.cpu(),self.masked_preds.cpu(),self.masked_targets.cpu(),self.masked_logits.cpu(),self.ce.cpu()]
             filenames = ["outputs", "masked_motifs", "masked_preds", "masked_targets", "masked_logits", "ce"]
             for tensor, file in zip(to_save,filenames):
-                torch.save(tensor,file+".pt")
+                torch.save(tensor,os.path.join( plots_dir,file+".pt"))
 
         self.metrics()
 
@@ -613,7 +633,7 @@ class MetricsHandler():
         model_names,
         test_path,
         motifs = motifs3p,
-        seq_col = "3-UTR", 
+        seq_col = "three_prime_region", 
         random_kmer_len = 7,
         n_random_kmers= None,
         binding_site_col = None, #"binding_range",
@@ -689,17 +709,7 @@ class MetricsHandler():
                 for match in re.finditer(motif.regex, seq):
                     # set found positions to motif id
                     m_indicator[start+match.start():start+match.end()] = motif.id
-            for motif in self.motifs:
-            # find all occurances
-            m_indicator = np.zeros(len(self.models[0].motifs))
-
-            for i in range(len(self.seq_starts)-1):
-                start, end = self.seq_starts[i], self.seq_starts[i+1]
-                seq = complete_seq[start:end]
-
-                for match in re.finditer(motif.regex, seq):
-                    # set found positions to motif id
-                    m_indicator[start+match.start():start+match.end()] = motif. 
+            
             # add indicator to motif
             motif.where = m_indicator
             # compute complete indicator for metrics
@@ -819,7 +829,7 @@ class MetricsHandler():
         self.motif_df_l["avg_target_probas"] = self.motif_df_l["target_probas"].apply(lambda x: float(x.mean()))
 
 
-    def recompute_metrics(sel_avg_target_probasf):
+    def recompute_metrics(self):
         #print("Recomputing metrics for each model")
         print("Recomputing metrics for each model")
         for m in self.models:
