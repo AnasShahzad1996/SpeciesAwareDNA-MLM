@@ -19,8 +19,9 @@ import wandb
 
 from helpers.tests import compare_sequences
 from helpers.utils import BaseRange, hot_one, outputs_to_cpu, flatten_list
-from helpers.motifs import sacc_cer_utr3_motif_handler as motifs3p, pombe_utr3_motif_handler as mpombe3p
+from helpers.motifs import motifs 
 import logging
+from Bio import SeqIO
 
 def get_logger(name=__name__) -> logging.Logger:
     """Initializes multi-GPU-friendly python command line logger."""
@@ -80,6 +81,13 @@ class MotifMetrics():
 
         # concatenate all batches and sequences into one large sequence
         self.preds = torch.cat([batch["preds"].transpose(0,1).flatten() for batch in outputs])
+        #check if some preds are nan
+        if torch.isnan(self.preds).any():
+            #print number of nan entries
+            print("number of nan entries: ", torch.isnan(self.preds).sum())
+        else:
+            print("No nan entries in preds")
+
         self.logits = torch.cat([torch.permute(batch["logits"],(2,0,1)).reshape(-1,5) for batch in outputs])
         self.targets = torch.cat([batch["targets"].transpose(0,1).flatten() for batch in outputs])
         self.motifs = torch.cat([batch["motifs"].transpose(0,1).flatten() for batch in outputs])
@@ -501,7 +509,7 @@ class LoadedMotifMetrics(MotifMetrics):
     def __init__(
         self,
         load_from = "",
-        motif_dict = motifs3p.dict, #{"TGTAAATA":1, "TGCAT":2, "ATATTC":3, "TTTTTTA":4}, # exo_motifs 
+        motif_dict = {}, #{"TGTAAATA":1, "TGCAT":2, "ATATTC":3, "TTTTTTA":4}, # exo_motifs 
         compute = True,
         probas_exist = False,
         ) -> None:
@@ -632,7 +640,7 @@ class MetricsHandler():
         model_paths,
         model_names,
         test_path,
-        motifs = motifs3p,
+        motifs = motifs,
         seq_col = "three_prime_region", 
         random_kmer_len = 7,
         n_random_kmers= None,
@@ -640,22 +648,38 @@ class MetricsHandler():
         existing_probas = None,
         ) -> None:
         
+        print(test_path)
+
         # if we use several handlers, they would be based on same object
         #motifs = copy.deepcopy(motifs)
         self.motifs = motifs #copy.deepcopy(motifs)
-
-
         # load csv from test path
         if test_path.endswith(".rds"):
             self.df = pyreadr.read_r(test_path)[None]
-        else:
+        elif test_path.endswith(".csv"):
             self.df = pd.read_csv(test_path)
+        elif test_path.endswith(".pickle") or test_path.endswith(".pkl"):
+            with open(test_path, "rb") as f:
+                self.df = pd.read_pickle(f)
+        elif test_path.endswith(".fa"):
+            sequences = []
+            for s in SeqIO.parse(test_path, "fasta"):
+                sequences.append(str(s.seq).upper())
+            # get the train fraction
+            val_fraction = 0.1
+            N_train = int(len(sequences)*(1-val_fraction))
+            test_data = sequences[N_train:]
+            # store it as a dataframe
+            self.df = pd.DataFrame({'3UTR':test_data})
+            #print(self.df)
+        
         self.df = self.df[self.df[seq_col].notnull()].reset_index(drop=True)
         # this is an easter egg. if you find this, you win 100 dollars. Just kidding :P But have fun reading the code :)
 
         # map to start positions
         self.seq_col = seq_col
         seq_pos = list(self.df[self.seq_col].apply(lambda x: len(x)))
+        #print(seq_pos)
         self.seq_starts = [0]
         for pos in seq_pos:
             self.seq_starts.append(self.seq_starts[-1] + pos)
@@ -664,7 +688,7 @@ class MetricsHandler():
         self.df["seq_range"] = [(self.seq_starts[i],self.seq_starts[i+1]) for i in range(len(self.seq_starts)-1)]
 
         log.info("Loading models")
-        print("Loading models")
+        #print("Loading models")
         # allow probabilities to be computed directly
         if existing_probas is not None:
             assert len(existing_probas) == len(model_paths), "Length mismatch."
@@ -698,6 +722,7 @@ class MetricsHandler():
         self.motif_ids = []
 
         # serach for each motif in each utr sequence
+        nr_motifs = 0
         for motif in self.motifs:
             # find all occurances
             m_indicator = np.zeros(len(self.models[0].motifs))
@@ -707,9 +732,10 @@ class MetricsHandler():
                 seq = complete_seq[start:end]
 
                 for match in re.finditer(motif.regex, seq):
+                    nr_motifs += 1
                     # set found positions to motif id
                     m_indicator[start+match.start():start+match.end()] = motif.id
-            
+         
             # add indicator to motif
             motif.where = m_indicator
             # compute complete indicator for metrics
@@ -728,6 +754,7 @@ class MetricsHandler():
             print(motif)
             print(self.motifs.get_motif(name = motif.name))
 
+        print(f"{nr_motifs}")
         # binding site ranges
         if binding_site_col is not None:
             r = list(self.df[~self.df[binding_site_col].isna()][binding_site_col])

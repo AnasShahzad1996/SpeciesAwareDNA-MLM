@@ -117,63 +117,33 @@ class MotifHandler():
         return motif 
     """
 
+motif_overlap = [
+    ("EWSR1","GGGGG"),
+    ("FUS", "GGGGG"),
+    ("TAF15", "GGGGG"),
+    ("HNRNPL", "ACACA"),
+    ("PABPN1L", "AAAAA"),
+    ("TRA2A", "GAAGA"),
+    ("PCBP2", "CCCCC"),
+    ("RBFOX2", "GCATG"),
+    ("TARDBP", "GTATG"),
+    ("HNRNPC", "TTTTT"),
+    ("TIA1","TTTTT"),
+    ("PTBP3", "TTTCT"),
+    ("CELF1", "TATGT"),
+    ("FUBP3", "TATAT"),
+    ("KHSRP", "TGTAT"),
+    ("PUM1", "TGTAT"),
+    ("KHDRBS2", "ATAAA")
+]
 
-sacc_cer_utr3_motifs = [("Puf3","TGTAAATA",1),
-                        #("Puf3_all","TGTA*ATA",17,"TGTA[TACG]ATA"),
-                        ("Puf3_TA","TGTA*ATA",19,"TGTA[TA]ATA"),
-                        ("Puf3_T","TGTATATA",18),
-                        ("Puf3_C","TGTACATA",17),
-                        ("Puf3_G","TGTAGATA",17),
-                        ("Whi3","TGCAT",2),
-                        ("Rmd9l","ATATTC",3),
-                        #("Pub1","TTTTTTA",4),
-                        ("Puf2","TAATAAT",5),
-                        ("Pab1","TATATA",6),
-                        ("Pin4","TTTAATGA",7),
-                        ("Nrd1","TTCTTGT",8)]
+# create a motif to id mapping, ids can overlap but proteins should not
+motifs_tmp = list(set(map(lambda x: x[1], motif_overlap)))
+motifs_tmp = dict(zip(motifs_tmp, range(len(motifs_tmp)))) # (motif, id)
 
-sacc_cer_utr3_motif_handler = MotifHandler(sacc_cer_utr3_motifs)
+#now add ids to the motif_overlap
+motif_overlap = list(map(lambda x: (x[0], x[1], motifs_tmp[x[1]]), motif_overlap))
 
-pombe_utr3_motifs = [("Puf3","TGTAAATA",1),
-                        #("Puf3_AT","TGTA*ATA",111,"TGTA[TA]ATA"),
-                        #("Puf3_ATC","TGTAXATA",111,"TGTA[CTA]ATA"),
-                        ("Pin4?","TTAATGA",11),
-                        ("Pin4","TTTAATGA",101),
-                        #("TATTTAT","TATTTAT",12),
-                        ("ACTAAT","ACTAAT",13),
-                        ("Are","TTATTTATT",14)]
-pombe_utr3_motif_handler = MotifHandler(pombe_utr3_motifs)
-
-
-puf_motifs = [("Puf3","TGTAAATA",1),
-                ("Puf3_T","TGTATATA",22),
-                ("Puf3_C","TGTACATA",33),
-                ("Puf3_G","TGTAGATA",34),
-                ("Puf3_all","XXXXTGTA*ATAXXXX",41,"[TCGA]{4}TGTA[ACT]ATA[TCGA]{4}"),
-                ("Puf3_l_A","XXXXTGTATATAXXXX",42,"[TCGA]{4}TGTAAATA[TCGA]{4}"),
-                ("Puf3_l_T","XXXXTGTAAATAXXXX",43,"[TCGA]{4}TGTATATA[TCGA]{4}"),
-                ("Puf3_l_C","XXXXTGTAAATAXXXX",44,"[TCGA]{2}C[TCGA]TGTA[ACT]ATA[TCGA]{4}"),
-                ]
-                #("Pub1","TTTTTTA",4),
-                #("Puf4","TGTATAATA",40)]
-
-puf_motif_handler = MotifHandler(puf_motifs)
-
-
-puf_motifs_c = [("Puf3_no_c","**TGTA*ATA",26,"[TGA][TGAC]TGTA[TA]ATA"),
-                ("Puf3_c","C*TGTA*ATA",27,"C[TGAC]TGTA[TA]ATA")]
-
-pufc_motif_handler = MotifHandler(puf_motifs_c)
-
-sacc_cer_utr3_motifs_flanks = [("Puf3","NNNNTGTA*ATANNNN",1,"[TCGA]{4}TGTA[TAC]ATA[TCGA]{4}"),
-                        #("Puf3_all","TGTA*ATA",17,"TGTA[TACG]ATA"),
-                        ("Whi3","NNNNTGCATNNNN",2,"[TCGA]{4}TGCAT[TCGA]{4}"),
-                        ("Rmd9l","NNNNATATTCNNNN",3,"[TCGA]{4}ATATTC[TCGA]{4}"),
-                        #("Pub1","TTTTTTA",4),
-                        ("Puf2","NNNNTAATAATNNNN",5,"[TCGA]{4}TAATAAT[TCGA]{4}"),
-                        ("Pab1","NNNNTATATANNNN",6,"[TCGA]{4}TATATA[TCGA]{4}"),
-                        ("Pin4","NNNNTTTAATGANNNN",7,"[TCGA]{4}TTTAATGA[TCGA]{4}"),
-                        ("Nrd1","NNNNTTCTTGTNNNN",8,"[TCGA]{4}TTCTTGT[TCGA]{4}")]
-
-
-scer_motif_flanks_handler = MotifHandler(sacc_cer_utr3_motifs_flanks)
+# MotifHandler takes a list of tuples 
+# (protein, motif, id, motif_regex)
+motifs = MotifHandler(motif_overlap)
