@@ -642,13 +642,13 @@ class MetricsHandler():
         test_path,
         motifs = motifs,
         seq_col = "three_prime_region", 
-        random_kmer_len = 7,
+        random_kmer_len = 5,
         n_random_kmers= None,
         binding_site_col = None, #"binding_range",
         existing_probas = None,
+        optional_config = None,
         ) -> None:
         
-        print(test_path)
 
         # if we use several handlers, they would be based on same object
         #motifs = copy.deepcopy(motifs)
@@ -714,7 +714,9 @@ class MetricsHandler():
         log.info("Searching for motifs")
         print("Searching for motifs")
         #get complete sequence
+        self.debug_seq = self.models[0].targets
         complete_seq = hot_one(self.models[0].targets)
+        
         # indicating all at once - can have overlaps though
         self.m_indicator_all = np.zeros(len(self.models[0].motifs))
         # motif ranges - for motif computations later
@@ -791,6 +793,9 @@ class MetricsHandler():
             if end<=start:
                 continue
 
+
+            # adding logic to exclude those sequences
+
             found=False
             tries = 0
             max_tries = 5
@@ -798,7 +803,6 @@ class MetricsHandler():
                 # get random position in df
                 tries +=1
                 if tries > max_tries:
-                    print("nope")
                     break
 
                 # position should not overlap with any motif /sum of indication at that pos is zero
@@ -806,8 +810,16 @@ class MetricsHandler():
 
                 # retry if not found
                 # fpund if no overlap with motifs, only small (2) overlap between each other
+                
+                alphabet = "ACGTN"
+
+                rand_mot = self.debug_seq[rand_pos: rand_pos+kmer_len] 
+                real_encode = "".join([alphabet[numeric] for numeric in rand_mot])
+                if real_encode in optional_config["exclude_random"]:
+                    continue
+
                 if binding_site_col is not None:
-                    if 100.0 not in self.m_indicator_all[rand_pos:rand_pos+kmer_len] and non_m_indicator[rand_pos:rand_pos+kmer_len].sum()<2:
+                    if (100.0 not in self.m_indicator_all[rand_pos:rand_pos+kmer_len] and non_m_indicator[rand_pos:rand_pos+kmer_len].sum()<2):
                         non_m_indicator[rand_pos:rand_pos+kmer_len] = 1
                         self.non_motif_ranges.append((rand_pos,rand_pos+kmer_len))
                         found = True

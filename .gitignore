@@ -5,6 +5,7 @@
 # don't leak it with random pickle ^^
 **/*.pickle
 **/*.pkl
+**/*.xlsx
 
 
 **/Scer_half_life.csv
