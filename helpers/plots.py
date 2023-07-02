@@ -1,15 +1,3 @@
-import logging
-import warnings
-from typing import List, Sequence
-
-import pytorch_lightning as pl
-from pytorch_lightning.loggers import TensorBoardLogger
-import rich.syntax
-import rich.tree
-from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.utilities import rank_zero_only
-
-
 import re
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -22,269 +10,18 @@ import torch
 import numpy as np
 import pandas as pd
 
-import pyreadr
 
 import pickle
 import copy
+
 from sklearn.metrics import accuracy_score, roc_curve, roc_auc_score, precision_recall_curve
 import wandb
 
-from motifs import sacc_cer_utr3_motif_handler as motifs3p
-
-#from src.datamodules.sequence_operations import mapping
-
-mapping = "ACGTN"
-
-def compare_sequences(pred, target):
-    pred_string = "pred: "
-    target_string = "true: "
-    # indicator if we are at true or false
-    true_streak = 0
-    for p_base, t_base in zip(pred, target):
-
-        if p_base == -100 or t_base == -100:
-            continue
-
-        # to nucleotide
-        p_nuc = mapping[p_base]
-        t_nuc = mapping[t_base]
-        
-        # compare
-        if p_nuc == t_nuc:
-            if true_streak == 0:
-                # not yet set to blue
-                pred_string += "\x1b[34m"
-                target_string += "\x1b[34m"
-            true_streak = 1
-
-        if p_nuc != t_nuc:
-            if true_streak == 1:
-                # set back to black
-                pred_string += "\x1b[0m"
-                target_string += "\x1b[0m"
-            true_streak = 0
-            
-        # add nucleotides
-        pred_string += p_nuc
-        target_string += t_nuc
-        
-    pred_string += "\x1b[0m"
-    target_string += "\x1b[0m"
-    return pred_string+ "\n"+ target_string
-
-
-import pickle
-import torch
-import numpy as np
-import pandas as pd
-
-import matplotlib.patches as mpatches
-import matplotlib.pyplot as plt
-import logomaker
-
-def load_pickle(dir_path, filenames):
-    """Loads objeckts from pickle files and returns the objects.
-
-    Args:
-        dir_path (str): Path to directory where pickle files are located
-        filenames (list[str] or str): list of all filenames to be loaded, or just one filename as str, filenames must not include the .pkl part
-
-    Returns:
-        _type_: list of objects loaded from pickle files or single object if one file passed as string to filenames
-    """    
-
-    # add / to path, if not there
-    if dir_path!="" and dir_path[-1]!="/":
-        dir_path += "/"
-
-    if type(filenames) == list:
-        loaded_objects = []
-        for file in filenames:
-            with open(dir_path + file + ".pkl", "rb") as file:
-                object = pickle.load(file)
-                loaded_objects.append(object)
-        return loaded_objects
-
-    else: # type(filenames) == str
-        with open(dir_path + filenames + ".pkl", "rb") as file:
-            object = pickle.load(file)
-        return object
-
-
-def save_pickle(filenames, objects_to_save, dir_path=""):
-    """Saves given objects to pickle files with specified names.
-
-    Args:
-        filenames (list[str] or str): Filenames to save objects as or sinngle filename as string.
-        objects_to_save (_type_): Either list of objects to save, should have same length as filenames list, or single object.
-        dir_path (str, optional): Directory path for pickle files to be saved in. Defaults to "".
-    """
-
-    # add / to path, if not there
-    if dir_path!="" and dir_path[-1]!="/":
-        dir_path += "/"
-
-    if type(filenames) == list:
-        assert type(objects_to_save) == list, "Objects you want to save where not passed as a list."
-        assert len(filenames) == len(objects_to_save), "The amount of objects to save ("+ str(len(objects_to_save)) +") did not match the amount of given filenames ("+ str(len(filenames)) +")"
-
-        for file, object in zip(filenames,objects_to_save): 
-            f = open(dir_path + file + ".pkl","wb")
-            pickle.dump(object,f)
-            f.close()
-
-    else: # type(filenames) == str
-        f = open(dir_path + file + ".pkl","wb")
-        pickle.dump(objects_to_save,f)
-        f.close()
-
-def outputs_to_cpu(outs):
-    """Goes through output list and maps all tensors in each batch to cpu.
-
-    Args:
-        outs (list[dict]): Output list containing batches/ dicts of tensors
-
-    Returns:
-        list[dict]: Output list of batches with all tensors on cpu
-    """    
-
-    for batch in outs:
-        for k in batch.keys():
-            batch[k] = batch[k].cpu()
-
-    return outs
-
-
-class color:
-    PURPLE = '\033[95m'
-    CYAN = '\033[96m'
-    DARKCYAN = '\033[36m'
-    BLUE = '\033[94m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    END = '\033[0m'
-    BLACK = '\033[30m'
-    WHITE = '\033[38;2;255;255;255m' #\033[37m'
-
-## background
-class bgcolor:
-    BLACK = '\033[40m'
-    RED = '\033[41m'
-    GREEN = '\033[42m'
-    WHITE = '\033[47m'
-    BLUE = '\033[44m'
-    WHITE = '\033[48;2;255;255;255m' #'\033[47m'
-    
-mapping = "ACGTN"
-    
-def compare_sequences_with_motif(pred, target, motif):
-    pred_string = "pred: "
-    target_string = "true: "
-    # indicator if we are at true or false
-    for p_base, t_base, is_motif in zip(pred, target, motif):
-
-        if p_base == -100 or t_base == -100:
-            continue
-
-        # to nucleotide
-        p_nuc = mapping[p_base]
-        t_nuc = mapping[t_base]
-        
-        # compare
-        if p_nuc == t_nuc:
-            # not yet set to blue
-            pred_string += color.WHITE + bgcolor.GREEN
-        else:
-            pred_string += color.WHITE + bgcolor.RED
-
-        # check for motif
-        if is_motif:
-            # make bold
-            target_string += color.BOLD + color.WHITE + bgcolor.BLUE
-
-        if not is_motif :
-            # remove bold again 
-            target_string += color.END #color.BLACK + bgcolor.WHITE
-
-
-        # add nucleotides
-        pred_string += p_nuc
-        target_string += t_nuc
-        
-    pred_string += color.END
-    target_string += color.END
-    return pred_string+ "\n"+ target_string
-
-
-class BaseRange():
-    def __init__(self, ce, targets, motifs, preds, logits):
-        self.ce = ce 
-        self.targets= targets
-        self.preds = preds
-        self.motifs = motifs
-        self.logits = logits
-        self.motif_colors = ["#FFD166","#06D6A0","#EF476F","#A100FE"]
-        self.motif_seqs= ["TGTAAATA", "TGCAT", "ATATTC", "TTTTTTA"]
-        
-        self.motif_count = torch.tensor([np.round(sum(self.motifs==i)/len(self.motif_seqs[i-1])) for i in range(1,len(self.motif_seqs)+1)])
-    
-    def __len__(self):
-        return len(self.ce)
-    
-    def compare_prediction(self):
-        return compare_sequences_with_motif(self.preds, self.targets, self.motifs)
-    
-    def logo(self, start=0, stop=None, figsize=(20,3)):
-        if stop is None:
-            stop = len(self)
-        logit_logo(self.logits[start:stop], figsize = (20,3))
-        
-    def plot_ce(self, start=0, stop=None):
-        if stop is None:
-            stop = len(self)
-                
-        fig, ax = plt.subplots(figsize=(20, 10))
-        ax.plot(self.ce[start:stop])
-
-        for i in (self.motifs[start:stop] != 0).nonzero():
-            # highlight a time range
-            ax.axvspan(int(i), int(i)+1, color=self.motif_colors[int(self.motifs[start+i])-1], alpha=0.3)
-            
-        
-        # create legend
-        handles = []
-        for col,mot in zip(self.motif_colors, self.motif_seqs):
-            patch = mpatches.Patch(color=col, label=mot, alpha=0.3)
-            handles.append(patch)
-            
-        ax.legend(handles=handles)
-        ax.set_xlim(0,stop-start)
-        
-        ax.set_ylabel("Avrerage Cross Entropy")
-        ax.set_xlabel("Relative nucleotide position")
-        
-        plt.show()
-
-
-def logit_logo(logits, softm=False, figsize=(15,3)):
-    
-    if softm:
-        logits = torch.nn.functional.softmax(logits, dim=1)
-    
-    logits = logits[:,:4]
-
-    logits_plot = pd.DataFrame(logits)   # channel_weights.permute(1,0).numpy())
-    logits_plot.columns = ["A","C","G","T"]
-    logomaker.Logo(logits_plot, figsize = figsize)
-    
-def hot_one(seq):
-    return "".join(["ACGTN"[int(i)] for i in seq])
-
-def flatten_list(l):
-    return [item for sublist in l for item in sublist]
+from helpers.tests import compare_sequences
+from helpers.utils import BaseRange, hot_one, outputs_to_cpu, flatten_list
+from helpers.motifs import motifs 
+import logging
+from Bio import SeqIO
 
 def get_logger(name=__name__) -> logging.Logger:
     """Initializes multi-GPU-friendly python command line logger."""
@@ -302,7 +39,7 @@ def get_logger(name=__name__) -> logging.Logger:
         "fatal",
         "critical",
     ):
-        setattr(logger, level, rank_zero_only(getattr(logger, level)))
+        setattr(logger, level, getattr(logger, level))
 
     return logger
 
@@ -335,7 +72,7 @@ class MotifMetrics():
         wandb_log = False,
         plots_dir = os.getcwd(),
         #motif_dict = None,
-        motif_dict =  motifs3p.dict, #mpombe3p.dict, # #{"TGTAAATA":1, "TGCAT":2, "ATATTC":3, "TTTTTTA":4}, # exo_motifs
+        motif_dict = {},
         save = True  
         ) -> None:
         
@@ -344,6 +81,13 @@ class MotifMetrics():
 
         # concatenate all batches and sequences into one large sequence
         self.preds = torch.cat([batch["preds"].transpose(0,1).flatten() for batch in outputs])
+        #check if some preds are nan
+        if torch.isnan(self.preds).any():
+            #print number of nan entries
+            print("number of nan entries: ", torch.isnan(self.preds).sum())
+        else:
+            print("No nan entries in preds")
+
         self.logits = torch.cat([torch.permute(batch["logits"],(2,0,1)).reshape(-1,5) for batch in outputs])
         self.targets = torch.cat([batch["targets"].transpose(0,1).flatten() for batch in outputs])
         self.motifs = torch.cat([batch["motifs"].transpose(0,1).flatten() for batch in outputs])
@@ -359,7 +103,8 @@ class MotifMetrics():
         self.masked_preds = self.preds[self.targets!=-100]#.cpu()
         self.masked_motifs = self.motifs[self.targets!=-100]#.cpu()
         self.masked_targets = self.targets[self.targets!=-100]#.cpu()
-        self.ce = cross_entropy(self.masked_logits.cuda(), self.masked_targets.cuda(), reduction = "none").cuda()
+        #self.ce = cross_entropy(self.masked_logits.cuda(), self.masked_targets.cuda(), reduction = "none").cuda()
+        self.ce = cross_entropy(self.masked_logits, self.masked_targets, reduction = "none")
         #self.ce = nll_loss(self.masked_logits.cuda(), self.masked_targets.cuda(), reduction = "none").cuda()
         
         self.residue_pos = self.annotate_residue_positions()
@@ -368,7 +113,7 @@ class MotifMetrics():
             to_save = [outputs_to_cpu(self.outputs), self.masked_motifs.cpu(),self.masked_preds.cpu(),self.masked_targets.cpu(),self.masked_logits.cpu(),self.ce.cpu()]
             filenames = ["outputs", "masked_motifs", "masked_preds", "masked_targets", "masked_logits", "ce"]
             for tensor, file in zip(to_save,filenames):
-                torch.save(tensor,file+".pt")
+                torch.save(tensor,os.path.join( plots_dir,file+".pt"))
 
         self.metrics()
 
@@ -764,7 +509,7 @@ class LoadedMotifMetrics(MotifMetrics):
     def __init__(
         self,
         load_from = "",
-        motif_dict = motifs3p.dict, #{"TGTAAATA":1, "TGCAT":2, "ATATTC":3, "TTTTTTA":4}, # exo_motifs 
+        motif_dict = {}, #{"TGTAAATA":1, "TGCAT":2, "ATATTC":3, "TTTTTTA":4}, # exo_motifs 
         compute = True,
         probas_exist = False,
         ) -> None:
@@ -888,37 +633,53 @@ class LoadedMotifMetrics(MotifMetrics):
         top_pred_file.close()
 
 
+
 class MetricsHandler():
 
     def __init__(self,
         model_paths,
         model_names,
         test_path,
-        motifs = motifs3p,
+        motifs = motifs,
         seq_col = "three_prime_region", 
         random_kmer_len = 5,
         n_random_kmers= None,
         binding_site_col = None, #"binding_range",
         existing_probas = None,
-        optional_config = None
+        optional_config = None,
         ) -> None:
         
+
         # if we use several handlers, they would be based on same object
         #motifs = copy.deepcopy(motifs)
         self.motifs = motifs #copy.deepcopy(motifs)
-        
-
         # load csv from test path
         if test_path.endswith(".rds"):
             self.df = pyreadr.read_r(test_path)[None]
-        else:
+        elif test_path.endswith(".csv"):
             self.df = pd.read_csv(test_path)
+        elif test_path.endswith(".pickle") or test_path.endswith(".pkl"):
+            with open(test_path, "rb") as f:
+                self.df = pd.read_pickle(f)
+        elif test_path.endswith(".fa"):
+            sequences = []
+            for s in SeqIO.parse(test_path, "fasta"):
+                sequences.append(str(s.seq).upper())
+            # get the train fraction
+            val_fraction = 0.1
+            N_train = int(len(sequences)*(1-val_fraction))
+            test_data = sequences[N_train:]
+            # store it as a dataframe
+            self.df = pd.DataFrame({'3UTR':test_data})
+            #print(self.df)
+        
         self.df = self.df[self.df[seq_col].notnull()].reset_index(drop=True)
         # this is an easter egg. if you find this, you win 100 dollars. Just kidding :P But have fun reading the code :)
 
         # map to start positions
         self.seq_col = seq_col
         seq_pos = list(self.df[self.seq_col].apply(lambda x: len(x)))
+        #print(seq_pos)
         self.seq_starts = [0]
         for pos in seq_pos:
             self.seq_starts.append(self.seq_starts[-1] + pos)
@@ -927,7 +688,7 @@ class MetricsHandler():
         self.df["seq_range"] = [(self.seq_starts[i],self.seq_starts[i+1]) for i in range(len(self.seq_starts)-1)]
 
         log.info("Loading models")
-        print("Loading models")
+        #print("Loading models")
         # allow probabilities to be computed directly
         if existing_probas is not None:
             assert len(existing_probas) == len(model_paths), "Length mismatch."
@@ -955,16 +716,15 @@ class MetricsHandler():
         #get complete sequence
         self.debug_seq = self.models[0].targets
         complete_seq = hot_one(self.models[0].targets)
+        
         # indicating all at once - can have overlaps though
         self.m_indicator_all = np.zeros(len(self.models[0].motifs))
         # motif ranges - for motif computations later
         self.motif_ranges = []
         self.motif_ids = []
 
-        
-        self.debug_names = []
-        
         # serach for each motif in each utr sequence
+        nr_motifs = 0
         for motif in self.motifs:
             # find all occurances
             m_indicator = np.zeros(len(self.models[0].motifs))
@@ -974,9 +734,10 @@ class MetricsHandler():
                 seq = complete_seq[start:end]
 
                 for match in re.finditer(motif.regex, seq):
+                    nr_motifs += 1
                     # set found positions to motif id
                     m_indicator[start+match.start():start+match.end()] = motif.id
-            
+         
             # add indicator to motif
             motif.where = m_indicator
             # compute complete indicator for metrics
@@ -986,10 +747,6 @@ class MetricsHandler():
             #self.df[motif.name] = motif.where
             self.df[motif.name] = [m_indicator[self.seq_starts[i]:self.seq_starts[i+1]] for i in range(len(self.seq_starts)-1)]
 
-            if motif.name not in self.debug_names:
-                
-                self.debug_names.append(motif.name)
-            
             # get motif ranges
             r = motif.ranges()
             assert motif.where is not None
@@ -998,7 +755,8 @@ class MetricsHandler():
             print(self.motifs.get_motif(name = motif.name) == motif)
             print(motif)
             print(self.motifs.get_motif(name = motif.name))
-        
+
+        print(f"{nr_motifs}")
         # binding site ranges
         if binding_site_col is not None:
             r = list(self.df[~self.df[binding_site_col].isna()][binding_site_col])
@@ -1022,8 +780,6 @@ class MetricsHandler():
             non_m_indicator = np.zeros(len(self.m_indicator_all))
             kmer_len=random_kmer_len # the longer, the less variance we have here (plots look better), 
             #             but 7 or 8 porbably best comparson
-            if optional_config is not None:
-            	kmer_len = optional_config["fixed_length"] 
 
             # get random UTR in df # not completely random for gpar binding - bc utrs appear several times
             if binding_site_col is not None:
@@ -1037,13 +793,8 @@ class MetricsHandler():
             if end<=start:
                 continue
 
-            # adding logic to exclude those sequences
-            alphabet = "ACGTN"
-            whole_seq = self.debug_seq[start:end]
-            real_encode = "".join([alphabet[numeric] for numeric in whole_seq])
-            if whole_seq in optional_config["exclude_random"]:
-                continue
 
+            # adding logic to exclude those sequences
 
             found=False
             tries = 0
@@ -1052,7 +803,6 @@ class MetricsHandler():
                 # get random position in df
                 tries +=1
                 if tries > max_tries:
-                    print("nope")
                     break
 
                 # position should not overlap with any motif /sum of indication at that pos is zero
@@ -1060,8 +810,16 @@ class MetricsHandler():
 
                 # retry if not found
                 # fpund if no overlap with motifs, only small (2) overlap between each other
+                
+                alphabet = "ACGTN"
+
+                rand_mot = self.debug_seq[rand_pos: rand_pos+kmer_len] 
+                real_encode = "".join([alphabet[numeric] for numeric in rand_mot])
+                if real_encode in optional_config["exclude_random"]:
+                    continue
+
                 if binding_site_col is not None:
-                    if 100.0 not in self.m_indicator_all[rand_pos:rand_pos+kmer_len] and non_m_indicator[rand_pos:rand_pos+kmer_len].sum()<2:
+                    if (100.0 not in self.m_indicator_all[rand_pos:rand_pos+kmer_len] and non_m_indicator[rand_pos:rand_pos+kmer_len].sum()<2):
                         non_m_indicator[rand_pos:rand_pos+kmer_len] = 1
                         self.non_motif_ranges.append((rand_pos,rand_pos+kmer_len))
                         found = True
