@@ -774,6 +774,9 @@ class MetricsHandler():
         retreived = 0
         self.non_motif_ranges = []
         np.random.seed(42)
+        if optional_config is None:
+            optional_config = {}
+            optional_config["exclude_random"] = []
         if n_random_kmers is None:
             n_random_kmers = len(self.motif_ids)
         while (retreived<n_random_kmers):
