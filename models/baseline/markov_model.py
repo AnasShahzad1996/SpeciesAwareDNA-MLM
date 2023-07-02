@@ -125,6 +125,8 @@ class BiMarkov(Markov):
     @classmethod
     def init_from_file(cls, file):
         markov_matrix = np.load(file)
+        #print(file)
+        #print(markov_matrix.shape[0])
         mkv = cls(KmerCount(markov_matrix.shape[0]*2 + 1))
         mkv.markov_matrix = markov_matrix
         return mkv

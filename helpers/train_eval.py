@@ -14,8 +14,7 @@ def model_train(model, optimizer, dataloader, device, silent=False):
 
     criterion = torch.nn.CrossEntropyLoss(reduction = "mean")
 
-    metric = MaskedAccuracy()#.to(device)
-    test_acc_motif = MaskedAccuracy()#.to(device)
+    metric = MaskedAccuracy().to(device)
     
     model.train() #model to train mode
 
@@ -33,9 +32,6 @@ def model_train(model, optimizer, dataloader, device, silent=False):
         species_label = species_label.to(device)
         targets_masked = targets_masked.to(device)
         targets = targets.to(device)
-        motif_targets = targets.detach().clone()
-        motif_targets[motif_targets == 0] = -100.0
-        motif_targets[targets_masked == -100] = -100.0
             
         logits, _ = model(masked_sequence, species_label)
 
@@ -53,14 +49,14 @@ def model_train(model, optimizer, dataloader, device, silent=False):
         smoothed_loss = loss_EMA.update(loss.item())
             
         preds = torch.argmax(logits, dim=1)
-        ignore_index = -100
+        
         masked_acc += metric(preds, targets_masked).detach() # compute only on masked nucleotides
         total_acc += metric(preds, targets).detach()
-        test_acc_motif += test_acc_motif(preds, motif_targets)
+        
         if not silent:
 
             pbar.update(1)
-            pbar.set_description(f"acc: {total_acc/(itr_idx+1):.2}, masked acc: {masked_acc/(itr_idx+1):.2}, loss: {smoothed_loss:.4}", motif_)
+            pbar.set_description(f"acc: {total_acc/(itr_idx+1):.2}, masked acc: {masked_acc/(itr_idx+1):.2}, loss: {smoothed_loss:.4}")
          
     if not silent:
         del pbar

@@ -84,7 +84,7 @@ class SeqDataset(Dataset):
         seq = self.fasta.fetch(seq_df.iloc[idx].seq_name).upper()
                 
         species_label = seq_df.iloc[idx].species_label
-        # x_batch, y_masked_batch, y_batch, mask_batch, motif_mask_batch        
+                
         masked_sequence, target_labels_masked, target_labels, mask, _ = self.transform(seq, motifs = {})
         
         masked_sequence = (masked_sequence, species_label)

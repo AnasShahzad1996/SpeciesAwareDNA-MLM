@@ -1,15 +1,4 @@
-# don't leak the original data/weights
-**/Homo_sapiens_3prime_UTR.fa
-**/Homo_sapiens_3prime_UTR.fa.fai
-**/MLM_mammals_species_aware_5000_weights
-# don't leak it with random pickle ^^
-**/*.pickle
-**/*.pkl
-**/*.xlsx
-
-
-**/Scer_half_life.csv
-# pt files are mostly too large -> rather regenerate or add to drive
-**/*.pt
-
-**/__pycache__/
+Homo_sapiens_3prime_UTR.fa
+Homo_sapiens_3prime_UTR.fa.fai
+MLM_mammals_species_aware_5000_weights
+Scer_half_life.csv

@@ -431,7 +431,7 @@ def motif_mask_encoding(seq,motifs,seq_len=300,total_len=303,masker=np.zeros(5))
     return x_batch, y_masked_batch, y_batch, mask_batch, motif_mask_batch
 
 
-#create test set with sequences that include motifs only
+    #create test set with sequences that include motifs only
 
 
 def compute_target_seq(seq, motifs, seq_len = 300, total_len = 305):

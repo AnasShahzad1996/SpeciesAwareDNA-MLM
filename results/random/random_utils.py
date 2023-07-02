@@ -896,7 +896,7 @@ class MetricsHandler():
         test_path,
         motifs = motifs3p,
         seq_col = "three_prime_region", 
-        random_kmer_len = 5,
+        random_kmer_len = 7,
         n_random_kmers= None,
         binding_site_col = None, #"binding_range",
         existing_probas = None,
@@ -1036,14 +1036,6 @@ class MetricsHandler():
 
             if end<=start:
                 continue
-
-            # adding logic to exclude those sequences
-            alphabet = "ACGTN"
-            whole_seq = self.debug_seq[start:end]
-            real_encode = "".join([alphabet[numeric] for numeric in whole_seq])
-            if whole_seq in optional_config["exclude_random"]:
-                continue
-
 
             found=False
             tries = 0
