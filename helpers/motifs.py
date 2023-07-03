@@ -137,6 +137,8 @@ motif_overlap = [
     ("KHDRBS2", "ATAAA")
 ]
 
+# TODO Anas add all top motifs motifs to here and create motif-handler
+
 # create a motif to id mapping, ids can overlap but proteins should not
 motifs_tmp = list(set(map(lambda x: x[1], motif_overlap)))
 motifs_tmp = dict(zip(motifs_tmp, range(len(motifs_tmp)))) # (motif, id)
