@@ -184,16 +184,16 @@ class MarkovModel():
     # refactored this in comparison to the original code
     def __init__(self,
         kmercount: KmerCount,
-        markov_matrix_path: str,
         order: int,
         bidirectional: bool,
-        test_df_path: str):
+        test_df_path: str,
+        path: str):
 
         self.test_df_path = test_df_path
 
         self.order = order
         self.bidirectional = bidirectional
-        self.markov_matrix = markov_matrix_path
+        self.path = path
 
         if bidirectional:
             self.model = BiMarkov(kmercount)
@@ -226,13 +226,13 @@ class MarkovModel():
 
         # save everything needed for plotting
         # no logits, so use prbs
-        torch.save(prbs, "masked_logits.pt")
-        torch.save(torch.argmax(prbs, dim=1), "masked_preds.pt")
-        torch.save(prbs, "prbs.pt")
-        torch.save(ce,"ce.pt")
+        torch.save(prbs, self.path + "masked_logits.pt")
+        torch.save(torch.argmax(prbs, dim=1), self.path + "masked_preds.pt")
+        torch.save(prbs, self.path + "prbs.pt")
+        torch.save(ce, self.path + "ce.pt")
 
         # save targets
-        torch.save(targets, "masked_targets.pt")
+        torch.save(targets, self.path + "masked_targets.pt")
 
         # save rest as placeholders (zeros of same length)
-        torch.save(torch.zeros(len(prbs)),"masked_motifs.pt")
+        torch.save(torch.zeros(len(prbs)), self.path + "masked_motifs.pt")
