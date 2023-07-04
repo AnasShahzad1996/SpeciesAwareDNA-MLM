@@ -663,14 +663,19 @@ class MetricsHandler():
                 self.df = pd.read_pickle(f)
         elif test_path.endswith(".fa"):
             sequences = []
+            ids = []
             for s in SeqIO.parse(test_path, "fasta"):
                 sequences.append(str(s.seq).upper())
+                infos = s.id.split(":")
+                ids.append(infos[0])
+
             # get the train fraction
             val_fraction = 0.1
             N_train = int(len(sequences)*(1-val_fraction))
             test_data = sequences[N_train:]
+            ids = ids[N_train:]
             # store it as a dataframe
-            self.df = pd.DataFrame({'3UTR':test_data})
+            self.df = pd.DataFrame({'3UTR':test_data, "id": ids})
             #print(self.df)
         
         self.df = self.df[self.df[seq_col].notnull()].reset_index(drop=True)
