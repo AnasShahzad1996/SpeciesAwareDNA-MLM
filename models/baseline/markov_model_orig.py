@@ -193,7 +193,7 @@ class MarkovModel():
         self.order = order
         
 
-    def test(self):
+    def test(self, path):
         prbs = []
         complete_string = ""
 
@@ -214,13 +214,13 @@ class MarkovModel():
         #print(ce)
 
         # save
-        torch.save(prbs, "masked_logits.pt") # no logits, so use prbs
-        torch.save(torch.argmax(prbs, dim=1), "masked_preds.pt")
-        torch.save(prbs, "prbs.pt")
-        torch.save(ce,"ce.pt")
+        torch.save(prbs, path + "masked_logits.pt") # no logits, so use prbs
+        torch.save(torch.argmax(prbs, dim=1), path + "masked_preds.pt")
+        torch.save(prbs, path + "prbs.pt")
+        torch.save(ce, path + "ce.pt")
 
         # save targets
-        torch.save(targets, "masked_targets.pt")
+        torch.save(targets, path + "masked_targets.pt")
 
         # save rest as placeholders (zeros of same length)
-        torch.save(torch.zeros(len(prbs)),"masked_motifs.pt")
+        torch.save(torch.zeros(len(prbs)), path + "masked_motifs.pt")
