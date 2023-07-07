@@ -646,7 +646,6 @@ class MetricsHandler():
         n_random_kmers= None,
         binding_site_col = None, #"binding_range",
         existing_probas = None,
-        optional_config = None,
         ) -> None:
         
 
@@ -763,15 +762,6 @@ class MetricsHandler():
 
         print(f"{nr_motifs}")
         # binding site ranges
-        if binding_site_col is not None:
-            r = list(self.df[~self.df[binding_site_col].isna()][binding_site_col])
-            r = [[int(float(x)) for x in r_string[1:-1].split(',')] for r_string in r] # its a tuple but saved as strig
-            
-            #print(r)
-            for x in r:
-                self.m_indicator_all[x[0]:x[1]] = 100
-            self.motif_ranges.append(r)
-            self.motif_ids += [binding_site_col] * len(r)
 
         # add non-motif to dataframe
         # get number of motifs - get same amount of random non motif instances (say 7mers)
@@ -779,69 +769,58 @@ class MetricsHandler():
         retreived = 0
         self.non_motif_ranges = []
         np.random.seed(42)
-        if optional_config is None:
-            optional_config = {}
-            optional_config["exclude_random"] = []
         if n_random_kmers is None:
             n_random_kmers = len(self.motif_ids)
+            
+        alphabet = "ACGTN"
+        csv_path = "../data/random_motifs.csv"
+        random_motifs = pd.read_csv(csv_path, sep=",")
+        random_motifs = random_motifs["random_motifs"].tolist()
+        sequence = "".join([alphabet[numeric] for numeric in self.debug_seq])
+
+        motifs_to_pos = {}
+        for motif in random_motifs:
+            motifs_to_pos[motif] = [m.start() for m in re.finditer(motif, sequence)]
+
         while (retreived<n_random_kmers):
+            if retreived%1000==0:
+                print(f"found {retreived} random kmers")
+
             non_m_indicator = np.zeros(len(self.m_indicator_all))
             kmer_len=random_kmer_len # the longer, the less variance we have here (plots look better), 
             #             but 7 or 8 porbably best comparson
 
-            # get random UTR in df # not completely random for gpar binding - bc utrs appear several times
-            if binding_site_col is not None:
-                seq_r = self.df.sample().iloc[0].seq_range
-                start,end = seq_r[0], seq_r[1]-kmer_len + 1
-            else:
-                utr_id = np.random.randint(0,len(self.df))
-                start = self.seq_starts[utr_id]
-                end = self.seq_starts[utr_id+1] - kmer_len + 1
+            utr_id = np.random.randint(0,len(self.df))
+            start = self.seq_starts[utr_id]
+            end = self.seq_starts[utr_id+1] - kmer_len + 1
 
             if end<=start:
                 continue
 
-
-            # adding logic to exclude those sequences
-
             found=False
             tries = 0
-            max_tries = 5
+            max_tries = 10
+            
+            
+
             while not found:
                 # get random position in df
                 tries +=1
                 if tries > max_tries:
+                    print("Could not find random motif")
                     break
 
-                # position should not overlap with any motif /sum of indication at that pos is zero
-                rand_pos = np.random.randint(start,end)
+                # pick a random motif from the list using np random
+                rand_mot = np.random.choice(random_motifs)
+                # find all occurances of the random motif in the sequence using regex
+                rand_pos = np.random.choice(motifs_to_pos[rand_mot])
 
-                # retry if not found
-                # fpund if no overlap with motifs, only small (2) overlap between each other
-                
-                alphabet = "ACGTN"
-
-                rand_mot = self.debug_seq[rand_pos: rand_pos+kmer_len] 
-                real_encode = "".join([alphabet[numeric] for numeric in rand_mot])
-                if real_encode in optional_config["exclude_random"]:
-                    continue
-
-                if binding_site_col is not None:
-                    if (100.0 not in self.m_indicator_all[rand_pos:rand_pos+kmer_len] and non_m_indicator[rand_pos:rand_pos+kmer_len].sum()<2):
-                        non_m_indicator[rand_pos:rand_pos+kmer_len] = 1
-                        self.non_motif_ranges.append((rand_pos,rand_pos+kmer_len))
-                        found = True
-                        retreived += 1
-                elif self.m_indicator_all[rand_pos:rand_pos+kmer_len].sum() == 0 and non_m_indicator[rand_pos:rand_pos+kmer_len].sum()<2:
+                if self.m_indicator_all[rand_pos:rand_pos+kmer_len].sum() == 0 and non_m_indicator[rand_pos:rand_pos+kmer_len].sum()<2:
                     # else 
                     non_m_indicator[rand_pos:rand_pos+kmer_len] = 1
                     self.non_motif_ranges.append((rand_pos,rand_pos+kmer_len))
                     found = True
                     retreived += 1
-
-                #else:
-                    #print(self.m_indicator_all[rand_pos:rand_pos+kmer_len].sum(),self.m_indicator_all[rand_pos:rand_pos+kmer_len])
-
 
         self.motif_df = pd.DataFrame()
 
