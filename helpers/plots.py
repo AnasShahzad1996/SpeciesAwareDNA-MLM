@@ -779,8 +779,15 @@ class MetricsHandler():
         sequence = "".join([alphabet[numeric] for numeric in self.debug_seq])
 
         motifs_to_pos = {}
+        start_ranges = self.df['seq_range'].apply(lambda x: x[0])  
+        end_ranges = self.df['seq_range'].apply(lambda x: x[1])  
+        range_df = pd.DataFrame({"start": start_ranges, "end": end_ranges})
         for motif in random_motifs:
-            motifs_to_pos[motif] = [m.start() for m in re.finditer(motif, sequence)]
+            motif_start_pos = []
+            for m in re.finditer(motif, sequence):
+                if range_df[(range_df['start'] <= m.start()) & (m.start() + random_kmer_len < range_df['end'])].shape[0] == 1:
+                    motif_start_pos.append(m.start())
+            motifs_to_pos[motif] = motif_start_pos
 
         while (retreived<n_random_kmers):
             if retreived%1000==0:
@@ -801,8 +808,6 @@ class MetricsHandler():
             tries = 0
             max_tries = 10
             
-            
-
             while not found:
                 # get random position in df
                 tries +=1
