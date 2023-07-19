@@ -6,6 +6,7 @@
 **/*.pickle
 **/*.pkl
 **/*.xlsx
+**/*.parquet
 
 
 **/Scer_half_life.csv

@@ -669,6 +669,10 @@ class MetricsHandler():
                 ids.append(infos[0])
 
             # get the train fraction
+            # TODO only for part 1
+            # TODO redo inference on species aware for part 2 and do on full data
+            # TODO paper focus on technical details
+            # TODO part 1 all motifs 
             val_fraction = 0.1
             N_train = int(len(sequences)*(1-val_fraction))
             test_data = sequences[N_train:]
@@ -759,6 +763,7 @@ class MetricsHandler():
             print(self.motifs.get_motif(name = motif.name) == motif)
             print(motif)
             print(self.motifs.get_motif(name = motif.name))
+            print("------")
 
         print(f"{nr_motifs}")
         # binding site ranges
