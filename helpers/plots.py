@@ -646,6 +646,8 @@ class MetricsHandler():
         n_random_kmers= None,
         binding_site_col = None, #"binding_range",
         existing_probas = None,
+        df_fasta_seq = None,
+        random_motif_path = ""
         ) -> None:
         
 
@@ -680,7 +682,10 @@ class MetricsHandler():
             # store it as a dataframe
             self.df = pd.DataFrame({'3UTR':test_data, "id": ids})
             #print(self.df)
-        
+        if df_fasta_seq is not None:
+            self.df = df_fasta_seq
+            self.df["3UTR"] = self.df["seq"]
+
         self.df = self.df[self.df[seq_col].notnull()].reset_index(drop=True)
         # this is an easter egg. if you find this, you win 100 dollars. Just kidding :P But have fun reading the code :)
 
@@ -778,7 +783,10 @@ class MetricsHandler():
             n_random_kmers = len(self.motif_ids)
             
         alphabet = "ACGTN"
-        csv_path = "../data/random_motifs.csv"
+        if random_motif_path == "":
+          csv_path = "../data/random_motifs.csv"
+        else:
+          csv_path = random_motif_path
         random_motifs = pd.read_csv(csv_path, sep=",")
         random_motifs = random_motifs["random_motifs"].tolist()
         sequence = "".join([alphabet[numeric] for numeric in self.debug_seq])
