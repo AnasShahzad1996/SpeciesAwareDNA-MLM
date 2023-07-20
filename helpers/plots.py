@@ -56,7 +56,7 @@ def positional_avg(all_motif_ce, motif_len):
         motif_ce_col = all_motif_ce[:len(all_motif_ce)-int(len(all_motif_ce)%motif_len)].reshape((-1,motif_len))
         avg_ce = motif_ce_col.mean(axis=1)
     else:
-        avg_ce = np.array([all_motif_ce.mean()])
+        avg_ce = torch.tensor(np.array([all_motif_ce.mean()]))
     
 
     # fix tensor []
@@ -647,7 +647,8 @@ class MetricsHandler():
         binding_site_col = None, #"binding_range",
         existing_probas = None,
         df_fasta_seq = None,
-        random_motif_path = ""
+        random_motif_path = "",
+        save_ram = True, 
         ) -> None:
         
 
@@ -759,7 +760,7 @@ class MetricsHandler():
             # self indictaor for each motif
             #self.df[motif.name] = motif.where
             self.df[motif.name] = [m_indicator[self.seq_starts[i]:self.seq_starts[i+1]] for i in range(len(self.seq_starts)-1)]
-
+            self.df = self.df.copy()
             # get motif ranges
             r = motif.ranges()
             assert motif.where is not None
@@ -819,7 +820,7 @@ class MetricsHandler():
 
             found=False
             tries = 0
-            max_tries = 10
+            max_tries = 4000
             
             while not found:
                 # get random position in df
@@ -872,7 +873,13 @@ class MetricsHandler():
         self.motif_df_l["avg_ll"] = self.motif_df_l["ll"].apply(lambda x: float(x.mean()))
         self.motif_df_l["avg_target_probas"] = self.motif_df_l["target_probas"].apply(lambda x: float(x.mean()))
 
-
+        # deletes unneeded colums which take up lots of space
+        if save_ram:
+          self.motif_df_l = self.motif_df_l.drop(columns=["ce", "ll", "target_probas", "preds", "cross_entropy", "avg_ll"])
+          keep_cols = ["seq", "id", "species", "pos", "chr", "3UTR", "seq_range"]
+          del_cols = [ col for col in self.df.columns if col not in keep_cols ]
+          self.df = self.df.drop(columns=del_cols)
+          
     def recompute_metrics(self):
         #print("Recomputing metrics for each model")
         print("Recomputing metrics for each model")
